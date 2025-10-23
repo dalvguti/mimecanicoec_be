@@ -10,9 +10,9 @@ const {
   getServices,
   createService
 } = require('../controllers/inventoryController');
-const { protect, authorize } = require('../middleware/auth');
+const { authorize } = require('../middleware/auth');
 
-router.use(protect);
+// All routes are protected (middleware applied at server level)
 
 router.get('/categories', getCategories);
 router.get('/services', getServices);

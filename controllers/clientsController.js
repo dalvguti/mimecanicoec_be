@@ -68,6 +68,74 @@ exports.getClient = async (req, res) => {
   }
 };
 
+// @desc    Create new client
+// @route   POST /api/clients
+// @access  Private
+exports.createClient = async (req, res) => {
+  try {
+    const { username, email, password, first_name, last_name, phone, company_name, tax_id, address, city, state, zip_code, notes } = req.body;
+
+    // Validate input
+    if (!username || !email || !password || !first_name || !last_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields'
+      });
+    }
+
+    // Check if user exists
+    const [existingUsers] = await db.query(
+      'SELECT id FROM users WHERE username = ? OR email = ?',
+      [username, email]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username or email already exists'
+      });
+    }
+
+    // Hash password
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Insert user
+    const [userResult] = await db.query(
+      'INSERT INTO users (username, email, password, first_name, last_name, phone, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, email, hashedPassword, first_name, last_name, phone, 'client']
+    );
+
+    const userId = userResult.insertId;
+
+    // Create client record
+    const [clientResult] = await db.query(
+      'INSERT INTO clients (user_id, company_name, tax_id, address, city, state, zip_code, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, company_name, tax_id, address, city, state, zip_code, notes]
+    );
+
+    // Get created client
+    const [clients] = await db.query(`
+      SELECT c.*, u.username, u.email, u.first_name, u.last_name, u.phone
+      FROM clients c
+      INNER JOIN users u ON c.user_id = u.id
+      WHERE c.id = ?
+    `, [clientResult.insertId]);
+
+    res.status(201).json({
+      success: true,
+      data: clients[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 // @desc    Update client
 // @route   PUT /api/clients/:id
 // @access  Private
@@ -134,6 +202,41 @@ exports.updateClient = async (req, res) => {
     res.json({
       success: true,
       data: updatedClients[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Delete client
+// @route   DELETE /api/clients/:id
+// @access  Private (Admin only)
+exports.deleteClient = async (req, res) => {
+  try {
+    const [clients] = await db.query('SELECT user_id FROM clients WHERE id = ?', [req.params.id]);
+
+    if (clients.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Client not found'
+      });
+    }
+
+    const userId = clients[0].user_id;
+
+    // Delete client record
+    await db.query('DELETE FROM clients WHERE id = ?', [req.params.id]);
+
+    // Optionally deactivate the user instead of deleting
+    await db.query('UPDATE users SET active = FALSE WHERE id = ?', [userId]);
+
+    res.json({
+      success: true,
+      message: 'Client deleted successfully'
     });
   } catch (error) {
     console.error(error);

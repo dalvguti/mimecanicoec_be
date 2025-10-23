@@ -7,9 +7,9 @@ const {
   updateWorkOrder,
   deleteWorkOrder
 } = require('../controllers/workOrdersController');
-const { protect, authorize } = require('../middleware/auth');
+const { authorize } = require('../middleware/auth');
 
-router.use(protect);
+// All routes are protected (middleware applied at server level)
 
 router
   .route('/')

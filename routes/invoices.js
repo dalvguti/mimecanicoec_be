@@ -9,9 +9,9 @@ const {
   addPayment,
   deleteInvoice
 } = require('../controllers/invoicesController');
-const { protect, authorize } = require('../middleware/auth');
+const { authorize } = require('../middleware/auth');
 
-router.use(protect);
+// All routes are protected (middleware applied at server level)
 
 router.post('/from-work-order/:workOrderId', authorize('admin', 'receptionist'), createInvoiceFromWorkOrder);
 
