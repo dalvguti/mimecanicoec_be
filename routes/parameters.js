@@ -8,9 +8,9 @@ const {
   deleteParameter,
   getParametersByCategory
 } = require('../controllers/parametersController');
-const { protect, authorize } = require('../middleware/auth');
+const { authorize } = require('../middleware/auth');
 
-router.use(protect);
+// All routes are protected (middleware applied at server level)
 
 // Public routes (all authenticated users can read)
 router.get('/', getParameters);
