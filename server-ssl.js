@@ -74,8 +74,8 @@ app.use('*', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-const SSL_PORT = process.env.SSL_PORT || 5443;
+const PORT = process.env.PORT || 5002;
+const SSL_PORT = process.env.SSL_PORT || 5003;
 
 // SSL Configuration
 const sslOptions = {
