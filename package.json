@@ -6,12 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "start:ssl": "node server-ssl.js",
+    "start:cpanel": "node server-cpanel.js",
     "dev": "nodemon server.js",
     "dev:ssl": "nodemon server-ssl.js",
+    "dev:cpanel": "nodemon server-cpanel.js",
     "db:check": "node scripts/dbCheck.js",
     "db:setup": "node scripts/dbSetup.js",
     "db:reset": "node scripts/dbReset.js",
-    "fix:password": "node scripts/fixAdminPassword.js"
+    "fix:password": "node scripts/fixAdminPassword.js",
+    "generate-certs": "node scripts/generateCerts.js"
   },
   "keywords": [],
   "author": "",

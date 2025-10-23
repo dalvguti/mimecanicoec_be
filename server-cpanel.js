@@ -25,8 +25,6 @@ const corsOptions = {
       'http://localhost:3001',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
-      'https://localhost:3000',
-      'https://localhost:3001'
     ].filter(Boolean);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
@@ -49,16 +47,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
-});
-
-// Security middleware
-app.use((req, res, next) => {
-  // Force HTTPS in production
-  if (process.env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
-    res.redirect(`https://${req.header('host')}${req.url}`);
-  } else {
-    next();
-  }
 });
 
 // Auth routes (public)
@@ -84,20 +72,19 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     protocol: req.protocol,
-    secure: req.secure || req.header('x-forwarded-proto') === 'https',
-    environment: process.env.NODE_ENV || 'development'
+    secure: req.secure,
+    host: req.get('host'),
+    environment: process.env.NODE_ENV || 'production'
   });
 });
 
-// Root route
+// Root route for cPanel app check
 app.get('/', (req, res) => {
   res.json({
     status: 'OK',
     message: 'MiMecanico API',
     version: '1.0.0',
     authentication: 'JWT',
-    ssl: req.secure || req.header('x-forwarded-proto') === 'https',
-    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       health: '/api/health',
       // Public
@@ -122,7 +109,6 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!'
   });
 });
 
@@ -134,58 +120,68 @@ app.use((req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5002;
-const SSL_PORT = process.env.SSL_PORT || 5003;
+// cPanel uses a virtual port system - listen on the port provided by the environment
+// or fallback to the PORT env variable
+const PORT = process.env.PORT || 5000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 5443;
+const USE_HTTPS = process.env.USE_HTTPS === 'true';
 
-// SSL Configuration
-const sslOptions = {
-  key: process.env.SSL_KEY_PATH ? fs.readFileSync(process.env.SSL_KEY_PATH) : null,
-  cert: process.env.SSL_CERT_PATH ? fs.readFileSync(process.env.SSL_CERT_PATH) : null,
-  ca: process.env.SSL_CA_PATH ? fs.readFileSync(process.env.SSL_CA_PATH) : null
-};
+// IMPORTANT FOR cPanel USERS:
+// Most cPanel setups handle SSL/HTTPS at the Apache/nginx level via reverse proxy.
+// You typically DON'T need to enable HTTPS here.
+// Only enable USE_HTTPS if:
+// 1. You have direct SSL certificates for your Node.js app
+// 2. You're NOT using cPanel's reverse proxy
+// 3. Your hosting provider specifically instructed you to handle SSL in Node.js
 
-// Start server based on environment
-if (process.env.NODE_ENV === 'production') {
-  // Production: Use HTTPS if SSL certificates are available
-  if (sslOptions.key && sslOptions.cert) {
-    const httpsServer = https.createServer(sslOptions, app);
-    
-    httpsServer.listen(SSL_PORT, () => {
-      console.log(`🚀 MiMecanico API Server running on HTTPS port ${SSL_PORT}`);
-      console.log(`🔒 SSL enabled with certificate`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-    });
-    
-    // Also start HTTP server for redirects (optional)
-    app.listen(PORT, () => {
-      console.log(`🔄 HTTP server running on port ${PORT} (redirects to HTTPS)`);
-    });
-  } else {
-    // Production without SSL certificates (cPanel handles SSL)
-    app.listen(PORT, () => {
-      console.log(`🚀 MiMecanico API Server running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-      console.log(`⚠️  SSL handled by cPanel/reverse proxy`);
-    });
-  }
-} else {
-  // Development: HTTP only
-  app.listen(PORT, () => {
-    console.log(`🚀 MiMecanico API Server running on port ${PORT}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔧 Development mode - HTTP only`);
+// Start HTTP server (required)
+try {
+  http.createServer(app).listen(PORT, '0.0.0.0', () => {
+    console.log(`HTTP Server is running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
+    console.log(`Listening on: 0.0.0.0:${PORT}`);
   });
+} catch (error) {
+  console.error('⚠️  Failed to start HTTP server:', error.message);
 }
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  process.exit(0);
-});
+// Start HTTPS server (optional - usually not needed on cPanel)
+if (USE_HTTPS) {
+  const certPath = process.env.SSL_CERT_PATH || path.join(__dirname, 'certs', 'server.crt');
+  const keyPath = process.env.SSL_KEY_PATH || path.join(__dirname, 'certs', 'server.key');
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  process.exit(0);
-});
+  // Check if SSL certificates exist
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    try {
+      const httpsOptions = {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      };
 
+      https.createServer(httpsOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
+        console.log(`HTTPS Server is running on port ${HTTPS_PORT}`);
+        console.log(`SSL Certificate: ${certPath}`);
+        console.log(`SSL Key: ${keyPath}`);
+        console.log(`⚠️  Note: cPanel usually handles SSL via reverse proxy.`);
+        console.log(`   Make sure this configuration doesn't conflict with cPanel's SSL setup.`);
+      });
+    } catch (error) {
+      console.error('⚠️  Failed to start HTTPS server:', error.message);
+      console.error('   Continuing with HTTP only...');
+    }
+  } else {
+    console.warn('⚠️  HTTPS is enabled but SSL certificates not found!');
+    console.warn(`Looking for:`);
+    console.warn(`  - Certificate: ${certPath}`);
+    console.warn(`  - Key: ${keyPath}`);
+    console.warn(`Run 'npm run generate-certs' to create self-signed certificates for development`);
+    console.warn(`Or disable HTTPS by removing USE_HTTPS environment variable`);
+  }
+} else {
+  console.log('ℹ️  HTTPS is disabled (recommended for cPanel)');
+  console.log('   cPanel handles SSL via reverse proxy at Apache/nginx level');
+  console.log('   Set USE_HTTPS=true in environment variables if you need direct HTTPS support');
+}
+
+// Export for cPanel
 module.exports = app;
