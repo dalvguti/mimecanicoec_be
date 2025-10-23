@@ -7,15 +7,17 @@ const {
   updateVehicle,
   deleteVehicle
 } = require('../controllers/vehiclesController');
-const { protect, authorize } = require('../middleware/auth');
+const { authorize } = require('../middleware/auth');
 
-router.use(protect);
+// All routes are protected (middleware applied at server level)
 
+// Vehicles management routes
 router
   .route('/')
   .get(getVehicles)
   .post(authorize('admin', 'receptionist'), createVehicle);
 
+// Vehicle by ID routes
 router
   .route('/:id')
   .get(getVehicle)

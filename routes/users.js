@@ -7,15 +7,17 @@ const {
   updateUser,
   deleteUser
 } = require('../controllers/usersController');
-const { protect, authorize } = require('../middleware/auth');
+const { authorize } = require('../middleware/auth');
 
-router.use(protect);
+// All routes are protected (middleware applied at server level)
 
+// Users management routes
 router
   .route('/')
   .get(authorize('admin', 'receptionist'), getUsers)
   .post(authorize('admin'), createUser);
 
+// User by ID routes
 router
   .route('/:id')
   .get(getUser)
