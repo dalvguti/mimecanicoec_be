@@ -51,11 +51,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security middleware
+// Security middleware (disabled for cPanel compatibility)
+// IMPORTANT: cPanel handles HTTPS redirects at the Apache/nginx level
+// Enabling this middleware on cPanel will cause ERR_TOO_MANY_REDIRECTS
 app.use((req, res, next) => {
-  // Force HTTPS in production
-  if (process.env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
-    res.redirect(`https://${req.header('host')}${req.url}`);
+  // Only redirect if explicitly enabled via environment variable
+  // This should NEVER be enabled on cPanel hosting
+  if (process.env.FORCE_HTTPS_REDIRECT === 'true' && 
+      process.env.NODE_ENV === 'production' && 
+      req.header('x-forwarded-proto') !== 'https') {
+    res.redirect(301, `https://${req.header('host')}${req.url}`);
   } else {
     next();
   }

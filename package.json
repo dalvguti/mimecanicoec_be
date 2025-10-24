@@ -6,10 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "start:ssl": "node server-ssl.js",
-    "start:cpanel": "node server-cpanel.js",
+    "start:cpanel": "node server-cpanel-2.js",
     "dev": "nodemon server.js",
     "dev:ssl": "nodemon server-ssl.js",
-    "dev:cpanel": "nodemon server-cpanel.js",
+    "dev:cpanel": "nodemon server-cpanel-2.js",
     "db:check": "node scripts/dbCheck.js",
     "db:setup": "node scripts/dbSetup.js",
     "db:reset": "node scripts/dbReset.js",
