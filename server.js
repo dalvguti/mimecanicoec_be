@@ -21,6 +21,7 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       process.env.ADMIN_URL,
+      'https://mimecanicoec.gutilopsa.com',
       'http://localhost:3000',
       'http://localhost:3001',
       'http://127.0.0.1:3000',

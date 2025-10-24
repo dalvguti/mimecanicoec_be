@@ -12,25 +12,35 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
-// Enhanced CORS configuration
+// Enhanced CORS configuration with debugging
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log(`CORS Request from origin: ${origin}`);
+    
     // Allow requests with no origin (like calls from Postman or mobile apps)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
     
     const allowedOrigins = [
       process.env.FRONTEND_URL,
       process.env.ADMIN_URL,
+      'https://mimecanicoec.gutilopsa.com',
       'http://localhost:3000',
       'http://localhost:3001',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
     ].filter(Boolean);
     
+    console.log('CORS Allowed origins:', allowedOrigins);
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log(`CORS: Allowing origin ${origin}`);
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log(`CORS: Blocking origin ${origin}`);
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
   credentials: true,
@@ -75,6 +85,17 @@ app.get('/api/health', (req, res) => {
     secure: req.secure,
     host: req.get('host'),
     environment: process.env.NODE_ENV || 'production'
+  });
+});
+
+// CORS test route
+app.get('/api/cors-test', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'CORS test successful',
+    origin: req.get('origin'),
+    headers: req.headers,
+    timestamp: new Date().toISOString()
   });
 });
 
