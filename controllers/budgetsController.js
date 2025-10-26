@@ -129,7 +129,8 @@ exports.createBudget = async (req, res) => {
       description,
       valid_until,
       notes,
-      items = []
+      items = [],
+      services = []
     } = req.body;
 
     if (!client_id) {
@@ -142,11 +143,17 @@ exports.createBudget = async (req, res) => {
     const budget_number = await generateBudgetNumber();
 
     // Calculate totals
-    let subtotal = 0;
+    let itemsSubtotal = 0;
     items.forEach(item => {
-      subtotal += parseFloat(item.quantity) * parseFloat(item.unit_price);
+      itemsSubtotal += parseFloat(item.quantity) * parseFloat(item.unit_price);
     });
 
+    let servicesSubtotal = 0;
+    services.forEach(service => {
+      servicesSubtotal += parseFloat(service.hours) * parseFloat(service.rate);
+    });
+
+    const subtotal = itemsSubtotal + servicesSubtotal;
     const tax_amount = subtotal * 0.12; // 12% IVA
     const total_amount = subtotal + tax_amount;
 
@@ -164,11 +171,19 @@ exports.createBudget = async (req, res) => {
 
     const budgetId = result.insertId;
 
-    // Insert items
+    // Insert items (parts/materials)
     for (const item of items) {
       await connection.query(
         'INSERT INTO budget_items (budget_id, item_type, description, quantity, unit_price, total) VALUES (?, ?, ?, ?, ?, ?)',
-        [budgetId, item.item_type, item.description, item.quantity, item.unit_price, item.quantity * item.unit_price]
+        [budgetId, 'part', item.description, item.quantity, item.unit_price, item.quantity * item.unit_price]
+      );
+    }
+
+    // Insert services (labor)
+    for (const service of services) {
+      await connection.query(
+        'INSERT INTO budget_items (budget_id, item_type, description, quantity, unit_price, total) VALUES (?, ?, ?, ?, ?, ?)',
+        [budgetId, 'service', service.description, service.hours, service.rate, service.hours * service.rate]
       );
     }
 

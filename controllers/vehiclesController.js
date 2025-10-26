@@ -9,8 +9,8 @@ exports.getVehicles = async (req, res) => {
     let query = `
       SELECT v.*, c.id as client_id, u.first_name, u.last_name, u.email
       FROM vehicles v
-      INNER JOIN clients c ON v.client_id = c.id
-      INNER JOIN users u ON c.user_id = u.id
+      LEFT JOIN clients c ON v.client_id = c.id
+      LEFT JOIN users u ON c.user_id = u.id
       WHERE 1=1
     `;
     const params = [];
@@ -46,8 +46,8 @@ exports.getVehicle = async (req, res) => {
     const [vehicles] = await db.query(`
       SELECT v.*, c.id as client_id, u.first_name, u.last_name, u.email, u.phone
       FROM vehicles v
-      INNER JOIN clients c ON v.client_id = c.id
-      INNER JOIN users u ON c.user_id = u.id
+      LEFT JOIN clients c ON v.client_id = c.id
+      LEFT JOIN users u ON c.user_id = u.id
       WHERE v.id = ?
     `, [req.params.id]);
 
@@ -78,10 +78,11 @@ exports.createVehicle = async (req, res) => {
   try {
     const { client_id, plate_number, brand, model, year, vin, color, mileage, notes } = req.body;
 
-    if (!client_id || !plate_number || !brand || !model || !year) {
+    // Make client_id optional (can be null)
+    if (!plate_number || !brand || !model || !year) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields'
+        message: 'Please provide all required fields (plate_number, brand, model, year)'
       });
     }
 
@@ -100,7 +101,7 @@ exports.createVehicle = async (req, res) => {
 
     const [result] = await db.query(
       'INSERT INTO vehicles (client_id, plate_number, brand, model, year, vin, color, mileage, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [client_id, plate_number, brand, model, year, vin, color, mileage, notes]
+      [client_id || null, plate_number, brand, model, year, vin || null, color || null, mileage || null, notes || null]
     );
 
     const [vehicles] = await db.query(
@@ -111,6 +112,53 @@ exports.createVehicle = async (req, res) => {
     res.status(201).json({
       success: true,
       data: vehicles[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Associate vehicle with client
+// @route   PUT /api/vehicles/:id/associate
+// @access  Private
+exports.associateVehicle = async (req, res) => {
+  try {
+    const { client_id } = req.body;
+
+    if (!client_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide client_id'
+      });
+    }
+
+    const [vehicles] = await db.query('SELECT id FROM vehicles WHERE id = ?', [req.params.id]);
+
+    if (vehicles.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vehicle not found'
+      });
+    }
+
+    // Update vehicle with client_id
+    await db.query(
+      'UPDATE vehicles SET client_id = ? WHERE id = ?',
+      [client_id, req.params.id]
+    );
+
+    const [updatedVehicles] = await db.query(
+      'SELECT * FROM vehicles WHERE id = ?',
+      [req.params.id]
+    );
+
+    res.json({
+      success: true,
+      data: updatedVehicles[0]
     });
   } catch (error) {
     console.error(error);
