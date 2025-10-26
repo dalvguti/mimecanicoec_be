@@ -7,7 +7,7 @@ exports.getVehicles = async (req, res) => {
   try {
     const { client_id } = req.query;
     let query = `
-      SELECT v.*, c.id as client_id, u.first_name, u.last_name, u.email
+      SELECT v.*, v.client_id, c.id as client_table_id, u.first_name, u.last_name, u.email
       FROM vehicles v
       LEFT JOIN clients c ON v.client_id = c.id
       LEFT JOIN users u ON c.user_id = u.id
@@ -174,7 +174,7 @@ exports.associateVehicle = async (req, res) => {
 // @access  Private
 exports.updateVehicle = async (req, res) => {
   try {
-    const { plate_number, brand, model, year, vin, color, mileage, notes } = req.body;
+    const { client_id, plate_number, brand, model, year, vin, color, mileage, notes } = req.body;
 
     const [vehicles] = await db.query('SELECT id FROM vehicles WHERE id = ?', [req.params.id]);
 
@@ -188,6 +188,10 @@ exports.updateVehicle = async (req, res) => {
     const updates = [];
     const params = [];
 
+    if (client_id !== undefined) {
+      updates.push('client_id = ?');
+      params.push(client_id || null);
+    }
     if (plate_number) {
       updates.push('plate_number = ?');
       params.push(plate_number);
