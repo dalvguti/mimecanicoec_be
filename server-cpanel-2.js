@@ -1,13 +1,13 @@
+// Load environment variables FIRST - before any other requires
+const dotenv = require('dotenv');
+dotenv.config();
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-
-// Load environment variables
-dotenv.config();
 
 // Initialize Express app
 const app = express();
